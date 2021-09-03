@@ -19,13 +19,14 @@ func OrganizeInputTags(url_t string, wg *sync.WaitGroup, sem chan bool) {
 	<-sem
 	resp, err := http.Get(url_t)
 	if err != nil {
-		fmt.Println(err)
 		return
 	}
 	defer resp.Body.Close()
 	doc, err := goquery.NewDocumentFromReader(resp.Body)
 	if err != nil {
-		fmt.Println(err)
+		return
+	}
+	if resp.StatusCode >= 400 {
 		return
 	}
 	forms := doc.Find("form")
