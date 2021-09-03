@@ -6,6 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"net/http"
+	"net/url"
 	"os"
 	"strings"
 	"sync"
@@ -13,10 +14,10 @@ import (
 	"github.com/PuerkitoBio/goquery"
 )
 
-func OrganizeInputTags(url string, wg *sync.WaitGroup, sem chan bool) {
+func OrganizeInputTags(url_t string, wg *sync.WaitGroup, sem chan bool) {
 	defer wg.Done()
 	<-sem
-	resp, err := http.Get(url)
+	resp, err := http.Get(url_t)
 	if err != nil {
 		fmt.Println(err)
 		return
@@ -28,7 +29,8 @@ func OrganizeInputTags(url string, wg *sync.WaitGroup, sem chan bool) {
 		return
 	}
 	forms := doc.Find("form")
-	var complete_input_tags_name string
+	complete_input_tags_name := url.Values{}
+	var new_url string
 	forms.Each(func(_ int, selection *goquery.Selection) {
 		method, _ := selection.Attr("method")
 		if method != "" {
@@ -38,21 +40,15 @@ func OrganizeInputTags(url string, wg *sync.WaitGroup, sem chan bool) {
 				input_tags.Each(func(_ int, s *goquery.Selection) {
 					input_tags_name, _ := s.Attr("name")
 					if input_tags_name != "" {
-						complete_input_tags_name += "," + input_tags_name + "=1"
-					} else {
-						return
+						complete_input_tags_name.Set(input_tags_name, "1")
 					}
 				})
-				if complete_input_tags_name != "" {
-					if strings.Contains(url, "?") {
-						complete_input_tags_name = strings.Replace(complete_input_tags_name, ",", "&", -1)
-					} else {
-						complete_input_tags_name = strings.Replace(complete_input_tags_name, ",", "?", 1)
-						complete_input_tags_name = strings.Replace(complete_input_tags_name, ",", "&", -1)
-					}
-					new_url := fmt.Sprintf("%s%s", url, complete_input_tags_name)
-					fmt.Println(new_url)
+				if strings.Contains(url_t, "?") {
+					new_url = fmt.Sprintf("%s&%s", url_t, complete_input_tags_name.Encode())
+				} else {
+					new_url = fmt.Sprintf("%s?%s", url_t, complete_input_tags_name.Encode())
 				}
+				fmt.Println(new_url)
 			}
 		}
 	})
