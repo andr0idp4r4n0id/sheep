@@ -17,12 +17,7 @@ import (
 
 func CheckContains(url_t string) bool {
 	re := regexp.MustCompile(`\?\w+=.+`)
-	matched := re.MatchString(url_t)
-	if matched {
-		return true
-	} else {
-		return false
-	}
+	return re.MatchString(url_t)
 }
 
 func OrganizeInputTags(url_t string, wg *sync.WaitGroup, sem chan bool) {
