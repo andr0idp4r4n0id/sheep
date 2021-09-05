@@ -85,7 +85,7 @@ func OrganizeInputTags(url_t string, wg *sync.WaitGroup, sem chan bool) {
 	})
 	if len(complete_input_tags_name) > 0 {
 		name_tags_encoded := complete_input_tags_name.Encode()
-		if !CheckContains(url_t) {
+		if CheckContains(url_t) {
 			new_url = fmt.Sprintf("%s&%s", url_t, name_tags_encoded)
 		} else {
 			new_url = fmt.Sprintf("%s?%s", url_t, name_tags_encoded)
