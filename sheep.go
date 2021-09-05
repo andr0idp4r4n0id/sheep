@@ -29,28 +29,23 @@ func OrganizeInputTags(url_t string, wg *sync.WaitGroup, sem chan bool) {
 	if resp.StatusCode >= 400 {
 		return
 	}
-	forms := doc.Find("form")
 	complete_input_tags_name := url.Values{}
 	var new_url string
-	forms.Each(func(_ int, selection *goquery.Selection) {
+	doc.Find("form").Each(func(_ int, selection *goquery.Selection) {
 		method, _ := selection.Attr("method")
-		if method != "" {
-			method = strings.ToLower(method)
-			if method == "get" {
-				input_tags := selection.Find("input")
-				input_tags.Each(func(_ int, s *goquery.Selection) {
-					input_tags_name, _ := s.Attr("name")
-					if input_tags_name != "" {
-						complete_input_tags_name.Set(input_tags_name, "1")
-					}
-				})
-				if strings.Contains(url_t, "?") {
-					new_url = fmt.Sprintf("%s&%s", url_t, complete_input_tags_name.Encode())
-				} else {
-					new_url = fmt.Sprintf("%s?%s", url_t, complete_input_tags_name.Encode())
+		if strings.ToLower(method) == "get" || method == "" {
+			selection.Find("input").Each(func(_ int, s *goquery.Selection) {
+				input_tags_name, _ := s.Attr("name")
+				if input_tags_name != "" {
+					complete_input_tags_name.Set(input_tags_name, "1")
 				}
-				fmt.Println(new_url)
+			})
+			if strings.Contains(url_t, "?") {
+				new_url = fmt.Sprintf("%s&%s", url_t, complete_input_tags_name.Encode())
+			} else {
+				new_url = fmt.Sprintf("%s?%s", url_t, complete_input_tags_name.Encode())
 			}
+			fmt.Println(new_url)
 		}
 	})
 }
@@ -72,3 +67,4 @@ func main() {
 	}
 	wg.Wait()
 }
+
