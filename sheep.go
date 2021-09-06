@@ -35,9 +35,6 @@ func OrganizeInputTags(url_t string, wg *sync.WaitGroup, sem chan bool) {
 	if resp.StatusCode >= 400 {
 		return
 	}
-	if CheckContains(url_t) {
-		fmt.Println(url_t)
-	}
 	complete_input_tags_name := url.Values{}
 	var new_url string
 	var list_of_input_tags_names []string
@@ -59,6 +56,10 @@ func OrganizeInputTags(url_t string, wg *sync.WaitGroup, sem chan bool) {
 					new_url = fmt.Sprintf("%s?%s", url_t, name_tags_encoded)
 				}
 				fmt.Println(new_url)
+			} else {
+				if CheckContains(url_t) {
+					fmt.Println(url_t)
+				}
 			}
 		}
 	})
