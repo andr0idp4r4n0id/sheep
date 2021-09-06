@@ -16,28 +16,29 @@ import (
 )
 
 func CheckContains(url_t string) bool {
-	re := regexp.MustCompile(`\?\w+=.+`)
+	re := regexp.MustCompile(`\?.+=.+`)
 	return re.MatchString(url_t)
 }
 
-func OrganizeInputTags(url_t string, wg *sync.WaitGroup, sem chan bool) {
-	defer wg.Done()
-	<-sem
+func SendHttpRequestReadResponseBody(url_t string) *goquery.Document {
 	resp, err := http.Get(url_t)
 	if err != nil {
-		return
+		return nil
 	}
 	defer resp.Body.Close()
+	if resp.StatusCode >= 400 {
+		return nil
+	}
 	doc, err := goquery.NewDocumentFromReader(resp.Body)
 	if err != nil {
-		return
+		return nil
 	}
-	if resp.StatusCode >= 400 {
-		return
-	}
-	complete_input_tags_name := url.Values{}
-	var new_url string
+	return doc
+}
+
+func FindGetInputInForms(doc *goquery.Document) (url.Values, []string) {
 	var list_of_input_tags_names []string
+	complete_input_tags_name := url.Values{}
 	doc.Find("form").Each(func(_ int, selection *goquery.Selection) {
 		method, _ := selection.Attr("method")
 		if strings.ToLower(method) == "get" || method == "" {
@@ -48,22 +49,17 @@ func OrganizeInputTags(url_t string, wg *sync.WaitGroup, sem chan bool) {
 					complete_input_tags_name.Set(input_tags_name, "1")
 				}
 			})
-			if len(complete_input_tags_name) > 0 {
-				name_tags_encoded := complete_input_tags_name.Encode()
-				if CheckContains(url_t) {
-					new_url = fmt.Sprintf("%s&%s", url_t, name_tags_encoded)
-				} else {
-					new_url = fmt.Sprintf("%s?%s", url_t, name_tags_encoded)
-				}
-				fmt.Println(new_url)
-			} else {
-				if CheckContains(url_t) {
-					fmt.Println(url_t)
-				}
-			}
 		}
 	})
-	complete_input_tags_name = url.Values{}
+	return (complete_input_tags_name), (list_of_input_tags_names)
+}
+
+func EncodeInputTagsName(complete_input_tags_name url.Values) string {
+	return complete_input_tags_name.Encode()
+}
+
+func GetInputTagsWithoutForm(doc *goquery.Document, list_of_input_tags_names []string) url.Values {
+	complete_input_tags_name_s := url.Values{}
 	doc.Find("input").Each(func(i int, s *goquery.Selection) {
 		check := false
 		input_tags_name, _ := s.Attr("name")
@@ -75,19 +71,43 @@ func OrganizeInputTags(url_t string, wg *sync.WaitGroup, sem chan bool) {
 				}
 			}
 			if !check {
-				complete_input_tags_name.Set(input_tags_name, "1")
+				complete_input_tags_name_s.Set(input_tags_name, "1")
 			}
 		}
 	})
-	if len(complete_input_tags_name) > 0 {
-		name_tags_encoded := complete_input_tags_name.Encode()
-		if CheckContains(url_t) {
-			new_url = fmt.Sprintf("%s&%s", url_t, name_tags_encoded)
-		} else {
-			new_url = fmt.Sprintf("%s?%s", url_t, name_tags_encoded)
-		}
-		fmt.Println(new_url)
+	return complete_input_tags_name_s
+}
+
+func OrganizeInputTags(url_t string, wg *sync.WaitGroup, sem chan bool) {
+	defer wg.Done()
+	<-sem
+	doc := SendHttpRequestReadResponseBody(url_t)
+	if doc == nil {
+		return
 	}
+	complete_input_tags_name, list_of_input_tags_names := FindGetInputInForms(doc)
+	if len(complete_input_tags_name) == 0 {
+		return
+	}
+	name_tags_encoded := EncodeInputTagsName(complete_input_tags_name)
+	var new_url string
+	if CheckContains(url_t) {
+		new_url = fmt.Sprintf("%s&%s", url_t, name_tags_encoded)
+	} else {
+		new_url = fmt.Sprintf("%s?%s", url_t, name_tags_encoded)
+	}
+	fmt.Println(new_url)
+	complete_input_tags_name_s := GetInputTagsWithoutForm(doc, list_of_input_tags_names)
+	if len(complete_input_tags_name_s) == 0 {
+		return
+	}
+	name_tags_encoded = EncodeInputTagsName(complete_input_tags_name_s)
+	if CheckContains(url_t) {
+		new_url = fmt.Sprintf("%s&%s", url_t, name_tags_encoded)
+	} else {
+		new_url = fmt.Sprintf("%s?%s", url_t, name_tags_encoded)
+	}
+	fmt.Println(new_url)
 }
 
 func main() {
