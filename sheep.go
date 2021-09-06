@@ -85,18 +85,18 @@ func OrganizeInputTags(url_t string, wg *sync.WaitGroup, sem chan bool) {
 	if doc == nil {
 		return
 	}
-	complete_input_tags_name, list_of_input_tags_names := FindGetInputInForms(doc)
-	if len(complete_input_tags_name) == 0 {
-		return
-	}
-	name_tags_encoded := EncodeInputTagsName(complete_input_tags_name)
+	var name_tags_encoded string
 	var new_url string
-	if CheckContains(url_t) {
-		new_url = fmt.Sprintf("%s&%s", url_t, name_tags_encoded)
-	} else {
-		new_url = fmt.Sprintf("%s?%s", url_t, name_tags_encoded)
+	complete_input_tags_name, list_of_input_tags_names := FindGetInputInForms(doc)
+	if len(complete_input_tags_name) != 0 {
+		name_tags_encoded = EncodeInputTagsName(complete_input_tags_name)
+		if CheckContains(url_t) {
+			new_url = fmt.Sprintf("%s&%s", url_t, name_tags_encoded)
+		} else {
+			new_url = fmt.Sprintf("%s?%s", url_t, name_tags_encoded)
+		}
+		fmt.Println(new_url)
 	}
-	fmt.Println(new_url)
 	complete_input_tags_name_s := GetInputTagsWithoutForm(doc, list_of_input_tags_names)
 	if len(complete_input_tags_name_s) == 0 {
 		return
