@@ -61,17 +61,23 @@ func EncodeInputTagsName(complete_input_tags_name url.Values) string {
 func GetInputTagsWithoutForm(doc *goquery.Document, list_of_input_tags_names []string) url.Values {
 	complete_input_tags_name_s := url.Values{}
 	doc.Find("input").Each(func(i int, s *goquery.Selection) {
-		check := false
-		input_tags_name, _ := s.Attr("name")
-		if input_tags_name != "" {
-			for _, name := range list_of_input_tags_names {
-				if input_tags_name == name {
-					check = true
-					break
+		if s.Before("form") == nil {
+			check := false
+			input_type, _ := s.Attr("type")
+			input_type = strings.ToLower(input_type)
+			if (input_type == "search") || (input_type == "url") || (input_type == "text") || (input_type == "file") || (input_type == "email") {
+				input_tags_name, _ := s.Attr("name")
+				if input_tags_name != "" {
+					for _, name := range list_of_input_tags_names {
+						if input_tags_name == name {
+							check = true
+							break
+						}
+					}
+					if !check {
+						complete_input_tags_name_s.Set(input_tags_name, "1")
+					}
 				}
-			}
-			if !check {
-				complete_input_tags_name_s.Set(input_tags_name, "1")
 			}
 		}
 	})
@@ -88,26 +94,28 @@ func OrganizeInputTags(url_t string, wg *sync.WaitGroup, sem chan bool) {
 	var name_tags_encoded string
 	var new_url string
 	complete_input_tags_name, list_of_input_tags_names := FindGetInputInForms(doc)
-	if len(complete_input_tags_name) != 0 {
-		name_tags_encoded = EncodeInputTagsName(complete_input_tags_name)
-		if CheckContains(url_t) {
-			new_url = fmt.Sprintf("%s&%s", url_t, name_tags_encoded)
-		} else {
-			new_url = fmt.Sprintf("%s?%s", url_t, name_tags_encoded)
-		}
-		fmt.Println(new_url)
-		complete_input_tags_name_s := GetInputTagsWithoutForm(doc, list_of_input_tags_names)
-		if len(complete_input_tags_name_s) == 0 {
-			return
-		}
-		name_tags_encoded = EncodeInputTagsName(complete_input_tags_name_s)
-		if CheckContains(url_t) {
-			new_url = fmt.Sprintf("%s&%s", url_t, name_tags_encoded)
-		} else {
-			new_url = fmt.Sprintf("%s?%s", url_t, name_tags_encoded)
-		}
-		fmt.Println(new_url)
+	if len(complete_input_tags_name) == 0 {
+		return
 	}
+	name_tags_encoded = EncodeInputTagsName(complete_input_tags_name)
+	if CheckContains(url_t) {
+		new_url = fmt.Sprintf("%s&%s", url_t, name_tags_encoded)
+	} else {
+		new_url = fmt.Sprintf("%s?%s", url_t, name_tags_encoded)
+	}
+	fmt.Println(new_url)
+	complete_input_tags_name_s := GetInputTagsWithoutForm(doc, list_of_input_tags_names)
+	if len(complete_input_tags_name_s) == 0 {
+		return
+	}
+	name_tags_encoded = EncodeInputTagsName(complete_input_tags_name_s)
+	if CheckContains(url_t) {
+		new_url = fmt.Sprintf("%s&%s", url_t, name_tags_encoded)
+	} else {
+		new_url = fmt.Sprintf("%s?%s", url_t, name_tags_encoded)
+	}
+	fmt.Println(new_url)
+
 }
 
 func main() {
