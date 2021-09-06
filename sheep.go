@@ -61,22 +61,23 @@ func EncodeInputTagsName(complete_input_tags_name url.Values) string {
 func GetInputTagsWithoutForm(doc *goquery.Document, list_of_input_tags_names []string) url.Values {
 	complete_input_tags_name_s := url.Values{}
 	doc.Find("input").Each(func(i int, s *goquery.Selection) {
-		if s.Before("form") == nil {
-			check := false
-			input_type, _ := s.Attr("type")
-			input_type = strings.ToLower(input_type)
-			if (input_type == "search") || (input_type == "url") || (input_type == "text") || (input_type == "file") || (input_type == "email") {
-				input_tags_name, _ := s.Attr("name")
-				if input_tags_name != "" {
-					for _, name := range list_of_input_tags_names {
-						if input_tags_name == name {
-							check = true
-							break
-						}
+		if s.Before("form") != nil {
+			return
+		}
+		check := false
+		input_type, _ := s.Attr("type")
+		input_type = strings.ToLower(input_type)
+		if (input_type == "search") || (input_type == "url") || (input_type == "text") || (input_type == "file") || (input_type == "email") {
+			input_tags_name, _ := s.Attr("name")
+			if input_tags_name != "" {
+				for _, name := range list_of_input_tags_names {
+					if input_tags_name == name {
+						check = true
+						break
 					}
-					if !check {
-						complete_input_tags_name_s.Set(input_tags_name, "1")
-					}
+				}
+				if !check {
+					complete_input_tags_name_s.Set(input_tags_name, "1")
 				}
 			}
 		}
