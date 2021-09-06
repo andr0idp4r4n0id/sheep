@@ -64,9 +64,9 @@ func OrganizeInputTags(url_t string, wg *sync.WaitGroup, sem chan bool) {
 	})
 	complete_input_tags_name = url.Values{}
 	doc.Find("input").Each(func(i int, s *goquery.Selection) {
+		check := false
 		input_tags_name, _ := s.Attr("name")
 		if input_tags_name != "" {
-			check := false
 			for _, name := range list_of_input_tags_names {
 				if input_tags_name == name {
 					check = true
