@@ -2,9 +2,9 @@ package main
 
 import (
 	"bufio"
+	"crypto/tls"
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"net/url"
 	"os"
@@ -12,108 +12,115 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/labstack/gommon/random"
+	"github.com/PuerkitoBio/goquery"
 )
 
 func CheckContains(url_t string) bool {
-	re := regexp.MustCompile(`\?\w.+`)
-	matched := re.MatchString(url_t)
-	return matched
+	re := regexp.MustCompile(`\?.+=.+`)
+	return re.MatchString(url_t)
 }
 
-func SetPayloads(parameters url.Values) (map[string]string, url.Values) {
-	payloads := url.Values{}
-	reversed_payload := make(map[string]string)
-	for name := range parameters {
-		payload := random.New().String(10, "abcdefghklqpoirykmnbv")
-		payloads.Set(name, payload)
-		reversed_payload[payload] = name
-	}
-	return (reversed_payload), (payloads)
-}
-
-func EncodePayloads(payloads url.Values) string {
-	return payloads.Encode()
-}
-
-func SendHttpRequestReadResponseBody(new_url string) []byte {
-	resp, err := http.Get(new_url)
+func SendHttpRequestReadResponseBody(url_t string) *goquery.Document {
+	resp, err := http.Get(url_t)
 	if err != nil {
 		return nil
 	}
 	defer resp.Body.Close()
-	bodyBytes, err := ioutil.ReadAll(resp.Body)
+	if resp.StatusCode >= 400 {
+		return nil
+	}
+	doc, err := goquery.NewDocumentFromReader(resp.Body)
 	if err != nil {
 		return nil
 	}
-	return bodyBytes
+	return doc
 }
 
-func CheckMatches(bodyString string, reversed_payload map[string]string) []string {
-	var matches []string
-	for payload := range reversed_payload {
-		re, _ := regexp.Compile(payload)
-		matches = append(matches, re.FindString(bodyString))
-	}
-
-	return matches
-}
-
-func FindPayloadInReversePayloads(matches []string, reversed_payload map[string]string) url.Values {
-	reflected_url := url.Values{}
-	for _, match := range matches {
-		for payload, name := range reversed_payload {
-			if match == payload {
-				reflected_url.Set(name, "1")
-				break
-			}
+func FindGetInputInForms(doc *goquery.Document) (url.Values, []string) {
+	var list_of_input_tags_names []string
+	complete_input_tags_name := url.Values{}
+	doc.Find("form").Each(func(_ int, selection *goquery.Selection) {
+		method, _ := selection.Attr("method")
+		if strings.ToLower(method) == "get" || method == "" {
+			selection.Find("input").Each(func(_ int, s *goquery.Selection) {
+				input_tags_name, _ := s.Attr("name")
+				if input_tags_name != "" {
+					list_of_input_tags_names = append(list_of_input_tags_names, input_tags_name)
+					complete_input_tags_name.Set(input_tags_name, "1")
+				}
+			})
 		}
-	}
-	return reflected_url
+	})
+	return (complete_input_tags_name), (list_of_input_tags_names)
 }
 
-func PrintReflections(reflected_url url.Values, new_url string, url_t string) {
-	if len(reflected_url) > 0 {
-		encoded_reflected_payloads := EncodePayloads(reflected_url)
-		url := strings.Split(url_t, "?")[0]
-		url = fmt.Sprintf("%s?%s", url, encoded_reflected_payloads)
-		fmt.Println(url)
-	} else {
-		return
-	}
+func EncodeInputTagsName(complete_input_tags_name url.Values) string {
+	return complete_input_tags_name.Encode()
 }
 
-func CheckReflectedParameters(url_t string, parameters url.Values, sem chan bool) {
-	reversed_payload, payloads := SetPayloads(parameters)
-	encoded_payloads := EncodePayloads(payloads)
-	var new_url string
+func GetInputTagsWithoutForm(doc *goquery.Document, list_of_input_tags_names []string) url.Values {
+	complete_input_tags_name_s := url.Values{}
+	doc.Find("input").Each(func(i int, s *goquery.Selection) {
+		if s.Before("form") != nil {
+			return
+		}
+		input_tags_name, _ := s.Attr("name")
+		if input_tags_name != "" {
+			complete_input_tags_name_s.Set(input_tags_name, "1")
+		}
+	})
+	return complete_input_tags_name_s
+}
+
+func OrganizeInputTags(url_t string, wg *sync.WaitGroup, sem chan bool) {
+	defer wg.Done()
+	<-sem
 	if CheckContains(url_t) {
-		new_url = fmt.Sprintf("%s&%s", url_t, encoded_payloads)
-	} else {
-		new_url = fmt.Sprintf("%s?%s", url_t, encoded_payloads)
+		fmt.Println(url_t)
 	}
-	bodyBytes := SendHttpRequestReadResponseBody(new_url)
-	if bodyBytes == nil {
+	doc := SendHttpRequestReadResponseBody(url_t)
+	if doc == nil {
 		return
 	}
-	bodyString := string(bodyBytes)
-	matches := CheckMatches(bodyString, reversed_payload)
-	reflected_url := FindPayloadInReversePayloads(matches, reversed_payload)
-	PrintReflections(reflected_url, new_url, url_t)
+	var name_tags_encoded string
+	var new_url string
+	complete_input_tags_name, list_of_input_tags_names := FindGetInputInForms(doc)
+	if len(complete_input_tags_name) == 0 {
+		return
+	}
+	name_tags_encoded = EncodeInputTagsName(complete_input_tags_name)
+	if CheckContains(url_t) {
+		new_url = fmt.Sprintf("%s&%s", url_t, name_tags_encoded)
+	} else {
+		new_url = fmt.Sprintf("%s?%s", url_t, name_tags_encoded)
+	}
+	fmt.Println(new_url)
+	complete_input_tags_name_s := GetInputTagsWithoutForm(doc, list_of_input_tags_names)
+	if len(complete_input_tags_name_s) == 0 {
+		return
+	}
+	name_tags_encoded = EncodeInputTagsName(complete_input_tags_name_s)
+	if CheckContains(url_t) {
+		new_url = fmt.Sprintf("%s&%s", url_t, name_tags_encoded)
+	} else {
+		new_url = fmt.Sprintf("%s?%s", url_t, name_tags_encoded)
+	}
+	fmt.Println(new_url)
+
 }
 
 func main() {
-	reader := bufio.NewScanner(os.Stdin)
-	conc := flag.Int("concurrency", 10, "concurrency level.")
-	sem := make(chan bool, *conc)
 	var wg sync.WaitGroup
+	conc := flag.Int("concurrency", 10, "concurrency level")
+	sem := make(chan bool, *conc)
+	reader := bufio.NewScanner(os.Stdin)
+	http.DefaultTransport.(*http.Transport).TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
 	for reader.Scan() {
-		url_t := reader.Text()
-		uri, _ := url.Parse(url_t)
+		url := reader.Text()
 		sem <- true
 		wg.Add(1)
 		go func() {
-			CheckReflectedParameters(url_t, uri.Query(), sem)
+			OrganizeInputTags(url, &wg, sem)
 			<-sem
 		}()
 		wg.Done()
