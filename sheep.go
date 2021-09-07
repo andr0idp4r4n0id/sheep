@@ -72,9 +72,7 @@ func GetInputTagsWithoutForm(doc *goquery.Document, list_of_input_tags_names []s
 	return complete_input_tags_name_s
 }
 
-func OrganizeInputTags(url_t string, wg *sync.WaitGroup, sem chan bool) {
-	defer wg.Done()
-	<-sem
+func OrganizeInputTags(url_t string, sem chan bool) {
 	if CheckContains(url_t) {
 		fmt.Println(url_t)
 	}
@@ -120,7 +118,7 @@ func main() {
 		sem <- true
 		wg.Add(1)
 		go func() {
-			OrganizeInputTags(url, &wg, sem)
+			OrganizeInputTags(url, sem)
 			<-sem
 		}()
 		wg.Done()
