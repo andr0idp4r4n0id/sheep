@@ -88,6 +88,9 @@ func GetInputTagsWithoutForm(doc *goquery.Document, list_of_input_tags_names []s
 func OrganizeInputTags(url_t string, wg *sync.WaitGroup, sem chan bool) {
 	defer wg.Done()
 	<-sem
+	if CheckContains(url_t) {
+		fmt.Println(url_t)
+	}
 	doc := SendHttpRequestReadResponseBody(url_t)
 	if doc == nil {
 		return
