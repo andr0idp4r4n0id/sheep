@@ -13,6 +13,7 @@ import (
 	"sync"
 
 	"github.com/PuerkitoBio/goquery"
+	"github.com/corpix/uarand"
 )
 
 func CheckContains(url_t string) bool {
@@ -21,11 +22,16 @@ func CheckContains(url_t string) bool {
 }
 
 func SendHttpRequestReadResponseBody(url_t string) *goquery.Document {
-	resp, err := http.Get(url_t)
+	client := &http.Client{}
+	req, err := http.NewRequest("GET", url_t, nil)
 	if err != nil {
 		return nil
 	}
-	defer resp.Body.Close()
+	req.Header.Set("User-Agent", uarand.GetRandom())
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil
+	}
 	if resp.StatusCode >= 400 {
 		return nil
 	}
