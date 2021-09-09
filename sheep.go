@@ -116,6 +116,7 @@ func OrganizeInputTags(url_t string, sem chan bool) {
 func main() {
 	var wg sync.WaitGroup
 	conc := flag.Int("concurrency", 10, "concurrency level")
+	flag.Parse()
 	sem := make(chan bool, *conc)
 	reader := bufio.NewScanner(os.Stdin)
 	http.DefaultTransport.(*http.Transport).TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
