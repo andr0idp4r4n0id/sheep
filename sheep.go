@@ -78,7 +78,7 @@ func GetInputTagsWithoutForm(doc *goquery.Document, list_of_input_tags_names []s
 	return complete_input_tags_name_s
 }
 
-func OrganizeInputTags(url_t string, sem chan bool) {
+func OrganizeInputTags(url_t string) {
 	if CheckContains(url_t) {
 		fmt.Println(url_t)
 	}
@@ -117,18 +117,18 @@ func main() {
 	var wg sync.WaitGroup
 	conc := flag.Int("concurrency", 10, "concurrency level")
 	flag.Parse()
-	sem := make(chan bool, *conc)
 	reader := bufio.NewScanner(os.Stdin)
 	http.DefaultTransport.(*http.Transport).TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
-	for reader.Scan() {
-		url := reader.Text()
-		sem <- true
+	for i := 0; i < *conc; i++ {
 		wg.Add(1)
 		go func() {
-			OrganizeInputTags(url, sem)
-			<-sem
+			for reader.Scan() {
+				url := reader.Text()
+				OrganizeInputTags(url)
+			}
+			wg.Done()
 		}()
-		wg.Done()
+		wg.Wait()
 	}
-	wg.Wait()
+
 }
