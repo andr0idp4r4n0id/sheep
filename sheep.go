@@ -120,14 +120,14 @@ func main() {
 	reader := bufio.NewScanner(os.Stdin)
 	http.DefaultTransport.(*http.Transport).TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
 	for i := 0; i < *conc; i++ {
-		wg.Add(1)
-		go func() {
-			for reader.Scan() {
-				url := reader.Text()
+		for reader.Scan() {
+			url := reader.Text()
+			wg.Add(1)
+			go func() {
 				OrganizeInputTags(url)
-			}
-			wg.Done()
-		}()
+				wg.Done()
+			}()
+		}
 		wg.Wait()
 	}
 
